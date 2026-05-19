@@ -62,14 +62,18 @@ export async function POST(req: NextRequest) {
       },
     })
 
-    const verificationToken = await generateVerificationToken(email)
-    const verificationUrl = `${process.env.NEXTAUTH_URL}/verify-email/${verificationToken}`
+    try {
+      const verificationToken = await generateVerificationToken(email)
+      const verificationUrl = `${process.env.NEXTAUTH_URL}/verify-email/${verificationToken}`
 
-    await sendEmail({
-      to: email,
-      subject: 'Verify your email address',
-      react: VerifyEmail({ name, verificationUrl }),
-    })
+      await sendEmail({
+        to: email,
+        subject: 'Verify your email address',
+        react: VerifyEmail({ name, verificationUrl }),
+      })
+    } catch (emailError) {
+      console.error('[REGISTER_EMAIL_ERROR]', emailError)
+    }
 
     return NextResponse.json(
       { success: true, message: 'Account created. Check your email to verify your address.' },
@@ -77,8 +81,10 @@ export async function POST(req: NextRequest) {
     )
   } catch (error) {
     console.error('[REGISTER_ERROR]', error)
+    const message =
+      error instanceof Error ? error.message : 'Something went wrong. Please try again.'
     return NextResponse.json(
-      { error: 'Something went wrong. Please try again.' },
+      { error: message },
       { status: 500 }
     )
   }
