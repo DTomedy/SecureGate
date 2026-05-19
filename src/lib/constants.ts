@@ -14,3 +14,4 @@ export const SMTP_PORT = parseInt(process.env.SMTP_PORT || '587', 10)
 export const SMTP_USER = process.env.SMTP_USER || ''
 export const SMTP_PASS = process.env.SMTP_PASS || ''
 export const SMTP_FROM_EMAIL = process.env.SMTP_FROM_EMAIL || ''
+export const RESEND_FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev'
