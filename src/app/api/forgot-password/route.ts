@@ -48,7 +48,8 @@ export async function POST(req: NextRequest) {
     }
 
     const resetToken = await generatePasswordResetToken(email)
-    const resetUrl = `${process.env.NEXTAUTH_URL}/reset-password/${resetToken}`
+    const origin = req.nextUrl.origin
+    const resetUrl = `${origin}/reset-password/${resetToken}`
 
     await sendEmail({
       to: email,

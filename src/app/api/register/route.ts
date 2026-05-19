@@ -33,7 +33,8 @@ export async function POST(req: NextRequest) {
       let emailErr: string | null = null
       try {
         const verificationToken = await generateVerificationToken(email)
-        const verificationUrl = `${process.env.NEXTAUTH_URL}/verify-email/${verificationToken}`
+        const origin = req.nextUrl.origin
+        const verificationUrl = `${origin}/verify-email/${verificationToken}`
         emailSent = await sendEmail({
           to: email,
           subject: 'Verify your email address',
@@ -73,7 +74,8 @@ export async function POST(req: NextRequest) {
     let emailErr: string | null = null
     try {
       const verificationToken = await generateVerificationToken(email)
-      const verificationUrl = `${process.env.NEXTAUTH_URL}/verify-email/${verificationToken}`
+      const origin = req.nextUrl.origin
+      const verificationUrl = `${origin}/verify-email/${verificationToken}`
       emailSent = await sendEmail({
         to: email,
         subject: 'Verify your email address',
