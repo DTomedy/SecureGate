@@ -44,10 +44,28 @@ export async function POST(req: NextRequest) {
     })
 
     if (existingUser) {
-      // Perform a dummy hash to prevent timing attacks
       await bcrypt.hash(password, SALT_ROUNDS)
+
+      let emailSent = false
+      try {
+        const verificationToken = await generateVerificationToken(email)
+        const verificationUrl = `${process.env.NEXTAUTH_URL}/verify-email/${verificationToken}`
+        emailSent = await sendEmail({
+          to: email,
+          subject: 'Verify your email address',
+          react: VerifyEmail({ name, verificationUrl }),
+        })
+      } catch (emailError) {
+        console.error('[REGISTER_EMAIL_ERROR]', emailError)
+      }
+
       return NextResponse.json(
-        { success: true, message: 'Account created. Check your email to verify your address.' },
+        {
+          success: true,
+          message: emailSent
+            ? 'Account created. Check your email to verify your address.'
+            : 'Account created. We could not send the verification email. Please request a new one.',
+        },
         { status: 201 }
       )
     }
@@ -62,11 +80,12 @@ export async function POST(req: NextRequest) {
       },
     })
 
+    let emailSent = false
     try {
       const verificationToken = await generateVerificationToken(email)
       const verificationUrl = `${process.env.NEXTAUTH_URL}/verify-email/${verificationToken}`
 
-      await sendEmail({
+      emailSent = await sendEmail({
         to: email,
         subject: 'Verify your email address',
         react: VerifyEmail({ name, verificationUrl }),
@@ -76,7 +95,12 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json(
-      { success: true, message: 'Account created. Check your email to verify your address.' },
+      {
+        success: true,
+        message: emailSent
+          ? 'Account created. Check your email to verify your address.'
+          : 'Account created. We could not send the verification email. Please request a new one.',
+      },
       { status: 201 }
     )
   } catch (error) {
