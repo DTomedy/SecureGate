@@ -1,11 +1,3 @@
-/**
- * Gall's Law — A complex system that works is invariably found to have evolved
- * from a simple system that worked. This single POST handler is the entire
- * registration surface. It validates input, writes the user, generates a
- * verification token, and dispatches an email. Every future auth flow (OAuth,
- * invite codes, etc.) should be a separate route following this same
- * pattern — not bolted onto this handler.
- */
 import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { prisma } from '@/lib/db'
@@ -15,15 +7,6 @@ import { sendEmail } from '@/lib/email'
 import { VerifyEmail } from '@/components/emails/VerifyEmail'
 import { SALT_ROUNDS } from '@/lib/constants'
 
-/**
- * Murphy's Law — Every database write can fail. Every string can be malformed.
- * The try/catch is not optional; it is the last line of defence between a
- * cryptic Prisma error and a sanitised JSON response.
- *
- * Postel's Law — Always return a generic success message on registration
- * regardless of outcome. Never confirm or deny whether the email already
- * exists in the database.
- */
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
@@ -47,6 +30,7 @@ export async function POST(req: NextRequest) {
       await bcrypt.hash(password, SALT_ROUNDS)
 
       let emailSent = false
+      let emailErr: string | null = null
       try {
         const verificationToken = await generateVerificationToken(email)
         const verificationUrl = `${process.env.NEXTAUTH_URL}/verify-email/${verificationToken}`
@@ -55,8 +39,12 @@ export async function POST(req: NextRequest) {
           subject: 'Verify your email address',
           react: VerifyEmail({ name, verificationUrl }),
         })
-      } catch (emailError) {
-        console.error('[REGISTER_EMAIL_ERROR]', emailError)
+        if (!emailSent) {
+          emailErr = 'Email delivery failed'
+        }
+      } catch (e) {
+        emailErr = e instanceof Error ? e.message : 'Unknown email error'
+        console.error('[REGISTER_EMAIL_ERROR]', e)
       }
 
       return NextResponse.json(
@@ -65,6 +53,7 @@ export async function POST(req: NextRequest) {
           message: emailSent
             ? 'Account created. Check your email to verify your address.'
             : 'Account created. We could not send the verification email. Please request a new one.',
+          error: emailSent ? null : emailErr,
         },
         { status: 201 }
       )
@@ -81,17 +70,21 @@ export async function POST(req: NextRequest) {
     })
 
     let emailSent = false
+    let emailErr: string | null = null
     try {
       const verificationToken = await generateVerificationToken(email)
       const verificationUrl = `${process.env.NEXTAUTH_URL}/verify-email/${verificationToken}`
-
       emailSent = await sendEmail({
         to: email,
         subject: 'Verify your email address',
         react: VerifyEmail({ name, verificationUrl }),
       })
-    } catch (emailError) {
-      console.error('[REGISTER_EMAIL_ERROR]', emailError)
+      if (!emailSent) {
+        emailErr = 'Email delivery failed'
+      }
+    } catch (e) {
+      emailErr = e instanceof Error ? e.message : 'Unknown email error'
+      console.error('[REGISTER_EMAIL_ERROR]', e)
     }
 
     return NextResponse.json(
@@ -100,6 +93,7 @@ export async function POST(req: NextRequest) {
         message: emailSent
           ? 'Account created. Check your email to verify your address.'
           : 'Account created. We could not send the verification email. Please request a new one.',
+        error: emailSent ? null : emailErr,
       },
       { status: 201 }
     )

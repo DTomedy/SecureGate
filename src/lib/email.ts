@@ -8,21 +8,24 @@ type SendEmailParams = {
   react: React.ReactElement
 }
 
-let transporter: nodemailer.Transporter | null = null
-
 function getTransporter(): nodemailer.Transporter {
-  if (!transporter) {
-    transporter = nodemailer.createTransport({
-      host: SMTP_HOST,
-      port: SMTP_PORT,
-      secure: SMTP_PORT === 465,
-      auth: {
-        user: SMTP_USER,
-        pass: SMTP_PASS,
-      },
-    })
+  const missing = []
+  if (!SMTP_USER) missing.push('SMTP_USER')
+  if (!SMTP_PASS) missing.push('SMTP_PASS')
+  if (!SMTP_FROM_EMAIL) missing.push('SMTP_FROM_EMAIL')
+  if (missing.length) {
+    throw new Error(`Missing SMTP credentials: ${missing.join(', ')}`)
   }
-  return transporter
+
+  return nodemailer.createTransport({
+    host: SMTP_HOST,
+    port: SMTP_PORT,
+    secure: SMTP_PORT === 465,
+    auth: {
+      user: SMTP_USER,
+      pass: SMTP_PASS,
+    },
+  })
 }
 
 export async function sendEmail({ to, subject, react }: SendEmailParams): Promise<boolean> {
