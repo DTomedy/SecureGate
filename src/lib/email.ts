@@ -1,22 +1,6 @@
-/**
- * Gall's Law — A complex system that works is invariably found to have evolved
- * from a simple system that worked. This file exports exactly one function
- * (sendEmail). Every email type — verification, password reset — calls this
- * same helper. Do not add per-email-type senders; pass different subject and
- * react props instead.
- */
-import { Resend } from 'resend'
-import { RESEND_FROM_EMAIL } from '@/lib/constants'
-
-let resendClient: Resend | null = null
-
-function getResendClient(): Resend {
-  if (!resendClient) {
-    // Provide a dummy key if env var is missing to prevent constructor throw during build
-    resendClient = new Resend(process.env.RESEND_API_KEY || 're_dummy_key_for_build')
-  }
-  return resendClient
-}
+import nodemailer from 'nodemailer'
+import { render } from '@react-email/render'
+import { SMTP_FROM_EMAIL, SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS } from '@/lib/constants'
 
 type SendEmailParams = {
   to: string
@@ -24,32 +8,35 @@ type SendEmailParams = {
   react: React.ReactElement
 }
 
-/**
- * Law of Leaky Abstractions — The caller only learns whether the email was
- * accepted for delivery by Resend's API. SMTP-level bounces, spam rejections,
- * or invalid "from" domain errors are logged server-side and never exposed.
- *
- * Postel's Law — Return a boolean so callers can decide their own error UX
- * without needing to understand the email delivery stack.
- */
+let transporter: nodemailer.Transporter | null = null
+
+function getTransporter(): nodemailer.Transporter {
+  if (!transporter) {
+    transporter = nodemailer.createTransport({
+      host: SMTP_HOST,
+      port: SMTP_PORT,
+      secure: SMTP_PORT === 465,
+      auth: {
+        user: SMTP_USER,
+        pass: SMTP_PASS,
+      },
+    })
+  }
+  return transporter
+}
+
 export async function sendEmail({ to, subject, react }: SendEmailParams): Promise<boolean> {
   try {
-    const client = getResendClient()
-    const { error } = await client.emails.send({
-      from: RESEND_FROM_EMAIL,
+    const html = await render(react)
+    await getTransporter().sendMail({
+      from: SMTP_FROM_EMAIL,
       to,
       subject,
-      react,
+      html,
     })
-
-    if (error) {
-      console.error('[EMAIL_SEND_ERROR]', error)
-      return false
-    }
-
     return true
   } catch (error) {
-    console.error('[EMAIL_SEND_EXCEPTION]', error)
+    console.error('[EMAIL_SEND_ERROR]', error)
     return false
   }
 }
