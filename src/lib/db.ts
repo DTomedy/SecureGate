@@ -6,6 +6,14 @@
  */
 import { PrismaClient } from '@prisma/client'
 
+// Fallback mapping for databases that only configure DATABASE_URL
+if (!process.env.POSTGRES_PRISMA_URL && process.env.DATABASE_URL) {
+  process.env.POSTGRES_PRISMA_URL = process.env.DATABASE_URL
+}
+if (!process.env.POSTGRES_URL_NON_POOLING && process.env.DATABASE_URL) {
+  process.env.POSTGRES_URL_NON_POOLING = process.env.DATABASE_URL
+}
+
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
 }
