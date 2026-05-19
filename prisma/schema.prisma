@@ -1,0 +1,40 @@
+// Gall's Law — A complex system that works is invariably found to have evolved
+// from a simple system that worked. These three models (User, VerificationToken,
+// PasswordResetToken) are the entire database surface area. Every auth flow —
+// signup, login, email verification, password reset — runs on this foundation.
+// Do not add models or fields without first proving they cannot be handled by
+// the existing schema.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  password      String
+  emailVerified DateTime?
+  createdAt     DateTime  @default(now())
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model PasswordResetToken {
+  email   String
+  token   String   @unique
+  expires DateTime
+
+  @@unique([email, token])
+}
