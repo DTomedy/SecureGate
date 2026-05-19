@@ -5,6 +5,7 @@
  * on top of this without changing it.
  */
 import type { Metadata } from 'next'
+import '@/app/globals.css'
 
 export const metadata: Metadata = {
   title: 'SecureGate',

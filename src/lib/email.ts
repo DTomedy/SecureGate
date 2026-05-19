@@ -8,7 +8,15 @@
 import { Resend } from 'resend'
 import { RESEND_FROM_EMAIL } from '@/lib/constants'
 
-const resend = new Resend(process.env.RESEND_API_KEY!)
+let resendClient: Resend | null = null
+
+function getResendClient(): Resend {
+  if (!resendClient) {
+    // Provide a dummy key if env var is missing to prevent constructor throw during build
+    resendClient = new Resend(process.env.RESEND_API_KEY || 're_dummy_key_for_build')
+  }
+  return resendClient
+}
 
 type SendEmailParams = {
   to: string
@@ -26,7 +34,8 @@ type SendEmailParams = {
  */
 export async function sendEmail({ to, subject, react }: SendEmailParams): Promise<boolean> {
   try {
-    const { error } = await resend.emails.send({
+    const client = getResendClient()
+    const { error } = await client.emails.send({
       from: RESEND_FROM_EMAIL,
       to,
       subject,

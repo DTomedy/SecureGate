@@ -1,30 +1,58 @@
 /**
  * Gall's Law — A complex system that works is invariably found to have evolved
  * from a simple system that worked. This handler validates a single token,
- * marks the user's email as verified, and deletes the token. Three Prisma
- * calls, no branching complexity. Every future email-action flow (e.g.
- * "verify new email address") should follow this exact read-validate-act-cleanup
- * pattern rather than adding conditionals to this handler.
+ * marks the user's email as verified, and deletes the token.
+ * We also support resending a verification token by providing the email.
  */
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
-import { getVerificationToken, deleteVerificationToken } from '@/lib/tokens'
+import { getVerificationToken, deleteVerificationToken, generateVerificationToken } from '@/lib/tokens'
+import { sendEmail } from '@/lib/email'
+import { VerifyEmail } from '@/components/emails/VerifyEmail'
 
-/**
- * Murphy's Law — A token can expire between the moment it's fetched and the
- * moment the verification is committed. The getVerificationToken helper
- * already checks expiry, but the transaction boundary exists for a reason:
- * never trust the client's timing.
- *
- * Postel's Law — Three failure states map to one user-facing message:
- * "Invalid or expired verification link." The caller does not learn whether
- * the token was missing, expired, or already consumed.
- */
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-    const { token } = body as { token?: string }
+    const { token, email } = body as { token?: string; email?: string }
 
+    // Case 1: Resend verification email
+    if (email) {
+      if (typeof email !== 'string' || !email.includes('@')) {
+        return NextResponse.json(
+          { error: 'Please enter a valid email address.' },
+          { status: 400 }
+        )
+      }
+
+      const user = await prisma.user.findUnique({
+        where: { email },
+        select: { name: true, emailVerified: true },
+      })
+
+      // Postel's Law — Always return success even if user not found or already verified
+      if (!user || user.emailVerified) {
+        return NextResponse.json(
+          { success: true, message: 'If the email is unregistered or unverified, a new verification link has been sent.' },
+          { status: 200 }
+        )
+      }
+
+      const verificationToken = await generateVerificationToken(email)
+      const verificationUrl = `${process.env.NEXTAUTH_URL}/verify-email/${verificationToken}`
+
+      await sendEmail({
+        to: email,
+        subject: 'Verify your email address',
+        react: VerifyEmail({ name: user.name ?? 'there', verificationUrl }),
+      })
+
+      return NextResponse.json(
+        { success: true, message: 'If the email is unregistered or unverified, a new verification link has been sent.' },
+        { status: 200 }
+      )
+    }
+
+    // Case 2: Verify token
     if (!token || typeof token !== 'string') {
       return NextResponse.json(
         { error: 'Invalid or expired verification link.' },

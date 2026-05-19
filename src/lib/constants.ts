@@ -9,4 +9,4 @@ export const VERIFICATION_TOKEN_EXPIRY_MINUTES = 15
 export const PASSWORD_RESET_TOKEN_EXPIRY_HOURS = 1
 export const RATE_LIMIT_MAX_ATTEMPTS = 5
 export const RATE_LIMIT_WINDOW_SECONDS = 600
-export const RESEND_FROM_EMAIL = 'noreply@securegate.app'
+export const RESEND_FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'noreply@securegate.app'
