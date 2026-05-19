@@ -44,9 +44,11 @@ export async function POST(req: NextRequest) {
     })
 
     if (existingUser) {
+      // Perform a dummy hash to prevent timing attacks
+      await bcrypt.hash(password, SALT_ROUNDS)
       return NextResponse.json(
-        { error: 'This email is already registered. Please sign in.' },
-        { status: 409 }
+        { success: true, message: 'Account created. Check your email to verify your address.' },
+        { status: 201 }
       )
     }
 
